@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\Framework\Session\SessionStartChecker">
+        <plugin name="swoolegento_cli_session" type="Swoolegento\Cli\Plugin\Session"/>
+    </type>
+    <type name="Magento\Framework\Webapi\Rest\Request">
+        <plugin name="swoolegento_cli_request" type="Swoolegento\Cli\Plugin\RestRequest"/>
+    </type>
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="swoolegento_cli_server" xsi:type="object">Swoolegento\Cli\Console\Command\StartServer</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

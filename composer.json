@@ -1,0 +1,19 @@
+{
+  "name": "swoolegento/magento2-module",
+  "description": "A module for running a Swoole PHP server in Magento 2",
+  "type": "magento2-module",
+  "version": "0.0.1",
+  "license": [
+    "OSL-3.0",
+    "AFL-3.0"
+  ],
+  "require": {
+    "php": "~7.4.0||~8.1.0"
+  },
+  "autoload": {
+    "files": [ "registration.php" ],
+    "psr-4": {
+      "Swoolegento\\Cli\\": ""
+    }
+  }
+}
