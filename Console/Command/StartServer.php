@@ -94,12 +94,18 @@ class StartServer extends Command
                     $_SERVER['REQUEST_METHOD'] = $request->server['request_method'];
                     if (!empty($request->server['query_string'])) {
                         $_SERVER['QUERY_STRING'] = $request->server['query_string'];
+                    } else {
+                        unset($_SERVER['QUERY_STRING']);
                     }
                     if (!empty($request->header['content-type'])) {
                         $_SERVER['REDIRECT_HTTP_CONTENT_TYPE'] = $request->header['content-type'];
+                    } else {
+                        unset($_SERVER['REDIRECT_HTTP_CONTENT_TYPE']);
                     }
                     if (!empty($request->header['x-requested-with'])) {
                         $_SERVER['HTTP_X_REQUESTED_WITH'] = $request->header['x-requested-with'];
+                    } else {
+                        unset($_SERVER['HTTP_X_REQUESTED_WITH']);
                     }
 
                     $_GET = $request->get;
