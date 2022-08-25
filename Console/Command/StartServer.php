@@ -19,6 +19,11 @@ class StartServer extends Command
     protected $_dir;
 
     /**
+     * @var \BlackfireProbe
+     */
+    protected $probe;
+
+    /**
      * @param string|null $name
      * @param \Magento\Framework\Filesystem\DirectoryList $dir
      */
@@ -58,6 +63,11 @@ class StartServer extends Command
         $http->on(
             "request",
             function (Request $request, Response $response) {
+                if (!$this->probe && isset($request->header['x-blackfire-query'])) {
+                    $this->probe = new \BlackfireProbe($request->header['x-blackfire-query']);
+                    $this->probe->enable();
+                }
+
                 $info = pathinfo($request->server['request_uri']);
                 if (!empty($info['extension'])) {
                     $staticFile = $this->_dir->getPath('pub') . preg_replace('/version[0-9]+\//i', '', $request->server['request_uri']);
@@ -199,6 +209,11 @@ class StartServer extends Command
                             $response->header($key, $value);
                         }
                         $response->status($m2Response->getStatusCode());
+                        if ($this->probe && $this->probe->isEnabled()) {
+                            $this->probe->close();
+                            list($probeHeaderName, $probeHeaderValue) = explode(':', $this->probe->getResponseLine(), 2);
+                            $response->header(strtolower("x-$probeHeaderName"), trim($probeHeaderValue));
+                        }
                         $response->end($m2Response->getContent() . "\n");
                     }
                 } catch (\Magento\Framework\View\Asset\File\NotFoundException $e) {
