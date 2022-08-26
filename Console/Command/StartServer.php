@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Swoolegento\Cli\Console\Command;
 
+use Swoolegento\Cli\App\ObjectManagerFactory;
+use Magento\Framework\Filesystem\DirectoryList;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Http\Server;
@@ -14,9 +16,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 class StartServer extends Command
 {
     /**
-     * @var \Magento\Framework\Filesystem\DirectoryList $_dir
+     * @var DirectoryList
      */
-    protected $_dir;
+    protected $directory;
+
+    /**
+     * @var ObjectManagerFactory
+     */
+    protected $factory;
 
     /**
      * @var \BlackfireProbe
@@ -24,14 +31,17 @@ class StartServer extends Command
     protected $probe;
 
     /**
+     * @param DirectoryList $directory
+     * @param ObjectManagerFactory $factory
      * @param string|null $name
-     * @param \Magento\Framework\Filesystem\DirectoryList $dir
      */
     public function __construct(
-        \Magento\Framework\Filesystem\DirectoryList $dir,
+        \Magento\Framework\Filesystem\DirectoryList $directory,
+        ObjectManagerFactory $factory,
         string $name = null
     ) {
-        $this->_dir = $dir;
+        $this->directory = $directory;
+        $this->factory = $factory;
 
         parent::__construct($name);
     }
@@ -57,7 +67,7 @@ class StartServer extends Command
         $http = new Server("0.0.0.0", 3000);
         $http->set([
             'log_level' => 5,
-            'log_file' => $this->_dir->getPath('log') . '/swoole.log',
+            'log_file' => $this->directory->getPath('log') . '/swoole.log',
         ]);
 
         $http->on(
@@ -70,7 +80,7 @@ class StartServer extends Command
 
                 $info = pathinfo($request->server['request_uri']);
                 if (!empty($info['extension'])) {
-                    $staticFile = $this->_dir->getPath('pub') . preg_replace('/version[0-9]+\//i', '', $request->server['request_uri']);
+                    $staticFile = $this->directory->getPath('pub') . preg_replace('/version[0-9]+\//i', '', $request->server['request_uri']);
                     if (file_exists($staticFile)) {
                         $response->sendfile($staticFile);
                         return true;
@@ -125,7 +135,7 @@ class StartServer extends Command
 
                     if (str_starts_with($request->server['request_uri'], '/static/')) {
                         $_GET['resource'] = preg_replace('/static\/version[0-9]+\//i', '', $request->server['request_uri']);
-                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER);
+                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER, $this->factory);
                         $application = $bootstrap->createApplication(\Magento\Framework\App\StaticResource::class);
                         $application->launch();
                         $response->sendfile($staticFile);
@@ -161,7 +171,7 @@ class StartServer extends Command
 
                                 // Serve file if it's materialized
                                 if ($mediaDirectory) {
-                                    $fileAbsolutePath = $this->_dir->getPath('pub') . '/' . $relativePath;
+                                    $fileAbsolutePath = $this->directory->getPath('pub') . '/' . $relativePath;
                                     $fileRelativePath = str_replace(rtrim($mediaDirectory, '/') . '/', '', $fileAbsolutePath);
 
                                     if (!$isAllowed($fileRelativePath, $allowedResources)) {
@@ -187,7 +197,7 @@ class StartServer extends Command
                             $params[\Magento\Framework\App\ObjectManagerFactory::INIT_PARAM_DEPLOYMENT_CONFIG] = [];
                             $params[\Magento\Framework\App\Cache\Frontend\Factory::PARAM_CACHE_FORCED_OPTIONS] = ['frontend_options' => ['disable_save' => true]];
                         }
-                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $params);
+                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $params, $this->factory);
                         /** @var \Magento\MediaStorage\App\Media $app */
                         $application = $bootstrap->createApplication(
                             \Magento\MediaStorage\App\Media::class,
@@ -202,7 +212,7 @@ class StartServer extends Command
                         $response->sendfile($fileAbsolutePath);
                         return true;
                     } else {
-                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER);
+                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER, $this->factory);
                         $application = $bootstrap->createApplication(\Magento\Framework\App\Http::class);
                         $m2Response = $application->launch();
                         foreach ($m2Response->getHeaders()->toArray() as $key => $value) {
