@@ -2,7 +2,10 @@
 
 namespace Swoolegento\Cli\App;
 
+use Magento\Framework\App\Area;
 use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\App\Interception\Cache\CompiledConfig;
+use Magento\Framework\App\ObjectManager;
 use Magento\Framework\App\State;
 use Magento\Framework\Filesystem\DriverPool;
 use Magento\Framework\Interception\ObjectManager\ConfigInterface;
@@ -28,12 +31,12 @@ class ObjectManagerFactory extends \Magento\Framework\App\ObjectManagerFactory
     private $definitions;
 
     /**
-     * @var \Magento\Framework\App\ObjectManager\Environment\Developer
+     * @var \Magento\Framework\App\ObjectManager\Environment\Developer|\Magento\Framework\App\ObjectManager\Environment\Compiled
      */
     private $env;
 
     /**
-     * @var \Magento\Framework\Interception\ObjectManager\Config\Developer
+     * @var \Magento\Framework\Interception\ObjectManager\Config\Developer|\Magento\Framework\Interception\ObjectManager\Config\Compiled
      */
     private $diConfig;
 
@@ -43,9 +46,14 @@ class ObjectManagerFactory extends \Magento\Framework\App\ObjectManagerFactory
      * @param DirectoryList $directoryList
      * @param DriverPool $driverPool
      * @param ConfigFilePool $configFilePool
+     * @param \Magento\Framework\Interception\Config\Config $config
      */
-    public function __construct(DirectoryList $directoryList, DriverPool $driverPool, ConfigFilePool $configFilePool)
-    {
+    public function __construct(
+        DirectoryList $directoryList,
+        DriverPool $driverPool,
+        ConfigFilePool $configFilePool,
+        \Magento\Framework\Interception\Config\Config $config
+    ) {
         parent::__construct($directoryList, $driverPool, $configFilePool);
 
         $this->definitionFactory = new \Magento\Framework\ObjectManager\DefinitionFactory(
@@ -63,6 +71,8 @@ class ObjectManagerFactory extends \Magento\Framework\App\ObjectManagerFactory
 
         /** @var ConfigInterface $diConfig */
         $this->diConfig = $this->env->getDiConfig();
+
+        $this->diConfig->setInterceptionConfig($config);
     }
 
     /**
@@ -142,8 +152,62 @@ class ObjectManagerFactory extends \Magento\Framework\App\ObjectManagerFactory
             ->setObjectManager($objectManager)
             ->setGeneratedEntities($generatedEntities);
 
-        $this->env->configureObjectManager($this->diConfig, $sharedInstances);
+        if ($this->env->getMode() == 'compiled') {
+            $this->configureObjectManagerCompiled($sharedInstances);
+        } else {
+            $this->configureObjectManager($sharedInstances);
+        }
 
         return $objectManager;
+    }
+
+    /**
+     * @param $sharedInstances
+     */
+    public function configureObjectManager(&$sharedInstances)
+    {
+        $originalSharedInstances = $sharedInstances;
+        $objectManager = ObjectManager::getInstance();
+        $sharedInstances[\Magento\Framework\ObjectManager\ConfigLoaderInterface::class] = $objectManager
+            ->get(\Magento\Framework\App\ObjectManager\ConfigLoader::class);
+
+        $this->diConfig->setCache(
+            $objectManager->get(\Magento\Framework\App\ObjectManager\ConfigCache::class)
+        );
+
+        $objectManager->configure(
+            $objectManager
+                ->get(\Magento\Framework\App\ObjectManager\ConfigLoader::class)
+                ->load(Area::AREA_GLOBAL)
+        );
+        $objectManager->get(\Magento\Framework\Config\ScopeInterface::class)
+            ->setCurrentScope('global');
+        /** Reset the shared instances once interception config is set so classes can be intercepted if necessary */
+        $sharedInstances = $originalSharedInstances;
+        $sharedInstances[\Magento\Framework\ObjectManager\ConfigLoaderInterface::class] = $objectManager
+            ->get(\Magento\Framework\App\ObjectManager\ConfigLoader::class);
+    }
+
+    /**
+     * @param $sharedInstances
+     */
+    public function configureObjectManagerCompiled(&$sharedInstances)
+    {
+        $objectManager = ObjectManager::getInstance();
+
+        $objectManager->configure(
+            $objectManager
+                ->get(\Magento\Framework\ObjectManager\ConfigLoaderInterface::class)
+                ->load(Area::AREA_GLOBAL)
+        );
+        $objectManager->get(\Magento\Framework\Config\ScopeInterface::class)
+            ->setCurrentScope('global');
+        $sharedInstances[\Magento\Framework\Interception\PluginList\PluginList::class] = $objectManager->create(
+            \Magento\Framework\Interception\PluginListInterface::class,
+            ['cache' => $objectManager->get(\Magento\Framework\App\Interception\Cache\CompiledConfig::class)]
+        );
+        $objectManager
+            ->get(\Magento\Framework\App\Cache\Manager::class)
+            ->setEnabled([CompiledConfig::TYPE_IDENTIFIER], true);
     }
 }
