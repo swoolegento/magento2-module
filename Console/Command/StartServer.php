@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Swoolegento\Cli\Console\Command;
 
+use Magento\Framework\App\AreaList;
 use Swoolegento\Cli\App\ObjectManagerFactory;
 use Magento\Framework\Filesystem\DirectoryList;
 use Swoole\Http\Request;
@@ -26,6 +27,11 @@ class StartServer extends Command
     protected $factory;
 
     /**
+     * @var AreaList
+     */
+    protected $areaList;
+
+    /**
      * @var \BlackfireProbe
      */
     protected $probe;
@@ -33,15 +39,19 @@ class StartServer extends Command
     /**
      * @param DirectoryList $directory
      * @param ObjectManagerFactory $factory
+     * @param AreaList $areaList
      * @param string|null $name
      */
     public function __construct(
         \Magento\Framework\Filesystem\DirectoryList $directory,
         ObjectManagerFactory $factory,
+        AreaList $areaList,
         string $name = null
     ) {
         $this->directory = $directory;
         $this->factory = $factory;
+        $this->areaList = $areaList;
+        $this->areaList->getCodeByFrontName('');
 
         parent::__construct($name);
     }
@@ -213,7 +223,9 @@ class StartServer extends Command
                         return true;
                     } else {
                         $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER, $this->factory);
-                        $application = $bootstrap->createApplication(\Magento\Framework\App\Http::class);
+                        $application = $bootstrap->createApplication(\Magento\Framework\App\Http::class, [
+                            'areaList' => $this->areaList
+                        ]);
                         $m2Response = $application->launch();
                         foreach ($m2Response->getHeaders()->toArray() as $key => $value) {
                             $response->header($key, $value);
