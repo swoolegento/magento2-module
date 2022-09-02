@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Swoolegento\Cli\Console\Command;
 
-use Magento\Framework\App\AreaList;
+use Magento\Framework\App\Bootstrap;
 use Swoolegento\Cli\App\ObjectManagerFactory;
 use Magento\Framework\Filesystem\DirectoryList;
 use Swoole\Http\Request;
@@ -27,11 +27,6 @@ class StartServer extends Command
     protected $factory;
 
     /**
-     * @var AreaList
-     */
-    protected $areaList;
-
-    /**
      * @var \BlackfireProbe
      */
     protected $probe;
@@ -39,19 +34,15 @@ class StartServer extends Command
     /**
      * @param DirectoryList $directory
      * @param ObjectManagerFactory $factory
-     * @param AreaList $areaList
      * @param string|null $name
      */
     public function __construct(
         \Magento\Framework\Filesystem\DirectoryList $directory,
         ObjectManagerFactory $factory,
-        AreaList $areaList,
         string $name = null
     ) {
         $this->directory = $directory;
         $this->factory = $factory;
-        $this->areaList = $areaList;
-        $this->areaList->getCodeByFrontName('');
 
         parent::__construct($name);
     }
@@ -145,8 +136,11 @@ class StartServer extends Command
 
                     if (str_starts_with($request->server['request_uri'], '/static/')) {
                         $_GET['resource'] = preg_replace('/static\/version[0-9]+\//i', '', $request->server['request_uri']);
-                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER, $this->factory);
-                        $application = $bootstrap->createApplication(\Magento\Framework\App\StaticResource::class);
+                        $bootstrap = new Bootstrap($this->factory, BP, $_SERVER);
+                        $httpRequest = $bootstrap->getObjectManager()->create(\Magento\Framework\App\Request\Http::class);
+                        $application = $bootstrap->createApplication(\Magento\Framework\App\StaticResource::class, [
+                            'request' => $httpRequest,
+                        ]);
                         $application->launch();
                         $response->sendfile($staticFile);
                         return true;
@@ -207,7 +201,7 @@ class StartServer extends Command
                             $params[\Magento\Framework\App\ObjectManagerFactory::INIT_PARAM_DEPLOYMENT_CONFIG] = [];
                             $params[\Magento\Framework\App\Cache\Frontend\Factory::PARAM_CACHE_FORCED_OPTIONS] = ['frontend_options' => ['disable_save' => true]];
                         }
-                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $params, $this->factory);
+                        $bootstrap = new Bootstrap($this->factory, BP, $params);
                         /** @var \Magento\MediaStorage\App\Media $app */
                         $application = $bootstrap->createApplication(
                             \Magento\MediaStorage\App\Media::class,
@@ -222,10 +216,8 @@ class StartServer extends Command
                         $response->sendfile($fileAbsolutePath);
                         return true;
                     } else {
-                        $bootstrap = \Magento\Framework\App\Bootstrap::create(BP, $_SERVER, $this->factory);
-                        $application = $bootstrap->createApplication(\Magento\Framework\App\Http::class, [
-                            'areaList' => $this->areaList
-                        ]);
+                        $bootstrap = new Bootstrap($this->factory, BP, $_SERVER);
+                        $application = $bootstrap->createApplication(\Magento\Framework\App\Http::class);
                         $m2Response = $application->launch();
                         foreach ($m2Response->getHeaders()->toArray() as $key => $value) {
                             $response->header($key, $value);
