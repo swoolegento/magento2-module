@@ -2,7 +2,7 @@
   "name": "swoolegento/magento2-module",
   "description": "A module for running a Swoole PHP server in Magento 2",
   "type": "magento2-module",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "license": [
     "OSL-3.0",
     "AFL-3.0"
