@@ -130,6 +130,7 @@ class StartServer extends Command
 
                     $newRequest = $bootstrap->getObjectManager()->create(\Magento\Framework\App\Request\Http::class);
                     $httpRequest = $bootstrap->getObjectManager()->get(\Magento\Framework\App\Request\Http::class);
+                    $httpRequest->setServer($newRequest->getServer());
                     $httpRequest->setRequestUri($newRequest->getRequestUri());
                     $httpRequest->setUri($newRequest->getUri());
                     $httpRequest->setPathInfo($newRequest->getPathInfo());
