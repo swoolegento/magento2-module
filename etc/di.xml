@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Magento\Framework\View\Layout" type="Swoolegento\Cli\View\Layout" />
+    <preference for="Magento\Catalog\Model\Layer\Resolver" type="Swoolegento\Cli\Model\Catalog\Layer\Resolver" />
     <type name="Magento\Framework\App\State">
         <plugin name="swoolegento_cli_state" type="Swoolegento\Cli\Plugin\State"/>
     </type>
