@@ -126,7 +126,7 @@ class StartServer extends Command
                     $_COOKIE = $request->cookie;
                     $GLOBALS['HTTP_RAW_POST_DATA'] = $request->getContent();
 
-                    $bootstrap->getObjectManager()->get(\Magento\Framework\Registry::class)->unregister('current_category');
+                    $bootstrap->getObjectManager()->get(\Magento\Framework\Registry::class)->__destruct();
 
                     $newRequest = $bootstrap->getObjectManager()->create(\Magento\Framework\App\Request\Http::class);
                     $httpRequest = $bootstrap->getObjectManager()->get(\Magento\Framework\App\Request\Http::class);
